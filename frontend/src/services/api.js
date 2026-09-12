@@ -1,0 +1,41 @@
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
+async function handleResponse(response) {
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Une erreur est survenue');
+  }
+  return response.json();
+}
+
+export async function getCalculations() {
+  const response = await fetch(`${API_BASE_URL}/calculations`);
+  return handleResponse(response);
+}
+
+export async function getCalculation(id) {
+  const response = await fetch(`${API_BASE_URL}/calculations/${id}`);
+  return handleResponse(response);
+}
+
+export async function saveCalculation(data) {
+  const response = await fetch(`${API_BASE_URL}/calculations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse(response);
+}
+
+export async function deleteCalculation(id) {
+  const response = await fetch(`${API_BASE_URL}/calculations/${id}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+  return handleResponse(response);
+}
