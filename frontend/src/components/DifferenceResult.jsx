@@ -39,7 +39,7 @@ export default function DifferenceResult({ difference }) {
           </div>
         </div>
       </div>
-
+{/* 
       <div style={{ marginTop: '10px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
         <button type="button" onClick={handleCopy} className="sap-btn">
           Copier la différence
@@ -50,7 +50,8 @@ export default function DifferenceResult({ difference }) {
             ✓ Différence copiée !
           </span>
         )}
-      </div>
+      </div> */}
+      
     </fieldset>
   );
 }
