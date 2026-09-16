@@ -34,6 +34,7 @@ export default function DynamicWeightInputs({
                 inputMode="decimal"
                 value={item.weight}
                 onChange={(e) => onChange(item.id, e.target.value)}
+                placeholder="0,00"
                 className="sap-input"
               />
               <span className="sap-input-suffix">kg</span>

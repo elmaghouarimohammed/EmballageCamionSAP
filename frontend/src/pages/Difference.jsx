@@ -118,6 +118,7 @@ export default function Difference() {
                 inputMode="decimal"
                 value={poidsProduitsEmballage}
                 onChange={(e) => handleProduitsChange(e.target.value)}
+                placeholder="0,00"
                 className="sap-input"
               />
               <span className="sap-input-suffix">kg</span>

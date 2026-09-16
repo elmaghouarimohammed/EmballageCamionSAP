@@ -4,5 +4,4 @@ export const weights = {
   cartoneCongle035: 0.35,
   cartoneCongle058: 0.58,
   palletePlastique72: 7.2,
-  palletePlastique16: 16,
 };

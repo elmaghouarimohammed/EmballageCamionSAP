@@ -1,4 +1,4 @@
-import { formatWeight } from '../utils/validation';
+import { formatCoefficient, formatWeight } from '../utils/validation';
 
 export default function PackagingInput({
   title,
@@ -32,7 +32,7 @@ export default function PackagingInput({
       <div className="sap-form-row">
         <span className="sap-form-label">Coefficient</span>
         <div className="sap-form-input-wrap">
-          <div className="sap-input-readonly">{coefficient} kg</div>
+          <div className="sap-input-readonly">{formatCoefficient(coefficient)} kg</div>
         </div>
       </div>
 

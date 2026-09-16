@@ -7,11 +7,11 @@ import { weights } from '../constants/weights';
 import { saveCalculation } from '../services/api';
 import { isValidDecimalInput, isValidIntegerInput, parseNonNegativeInteger, parseNonNegativeNumber } from '../utils/validation';
 
-let palletIdCounter = 0;
+let itemIdCounter = 0;
 
-function createWoodPallet(weight = '') {
-  palletIdCounter += 1;
-  return { id: palletIdCounter, weight };
+function createItem() {
+  itemIdCounter += 1;
+  return { id: itemIdCounter, name: '', weight: '' };
 }
 
 export default function Home() {
@@ -20,7 +20,7 @@ export default function Home() {
   const [cartoneCongle035, setCartoneCongle035] = useState('');
   const [cartoneCongle058, setCartoneCongle058] = useState('');
   const [palletePlastique72, setPalletePlastique72] = useState('');
-  const [palletePlastique16, setPalletePlastique16] = useState('');
+  const [palettesPlastique16, setPalettesPlastique16] = useState([]);
   const [palettesBois, setPalettesBois] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState('Prêt');
@@ -36,7 +36,7 @@ export default function Home() {
     }
   }, []);
 
-  const handleDecimalChange = useCallback((id, value) => {
+  const handleWoodWeightChange = useCallback((id, value) => {
     if (!isValidDecimalInput(value)) return;
     setPalettesBois((prev) =>
       prev.map((p) => (p.id === id ? { ...p, weight: value } : p))
@@ -44,26 +44,49 @@ export default function Home() {
   }, []);
 
   const addWoodPallet = useCallback(() => {
-    setPalettesBois((prev) => [...prev, createWoodPallet()]);
+    setPalettesBois((prev) => [...prev, createItem()]);
   }, []);
 
   const removeWoodPallet = useCallback((id) => {
     setPalettesBois((prev) => prev.filter((p) => p.id !== id));
   }, []);
 
+  const addPlasticPallet = useCallback(() => {
+    setPalettesPlastique16((prev) => [...prev, createItem()]);
+  }, []);
+
+  const removePlasticPallet = useCallback((id) => {
+    setPalettesPlastique16((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
+  const handlePlasticWeightChange = useCallback((id, value) => {
+    if (!isValidDecimalInput(value)) return;
+    setPalettesPlastique16((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, weight: value } : p))
+    );
+  }, []);
+
   const caisseQty = parseNonNegativeInteger(caisse) ?? 0;
   const cartoneFraisQty = parseNonNegativeInteger(cartoneFrais) ?? 0;
   const cartoneCongle035Qty = parseNonNegativeInteger(cartoneCongle035) ?? 0;
   const cartoneCongle058Qty = parseNonNegativeInteger(cartoneCongle058) ?? 0;
+
   const palletePlastique72Qty = parseNonNegativeInteger(palletePlastique72) ?? 0;
-  const palletePlastique16Qty = parseNonNegativeInteger(palletePlastique16) ?? 0;
 
   const caisseTotal = caisseQty * weights.caisse;
   const cartoneFraisTotal = cartoneFraisQty * weights.cartoneFrais;
   const cartoneCongle035Total = cartoneCongle035Qty * weights.cartoneCongle035;
   const cartoneCongle058Total = cartoneCongle058Qty * weights.cartoneCongle058;
   const palletePlastique72Total = palletePlastique72Qty * weights.palletePlastique72;
-  const palletePlastique16Total = palletePlastique16Qty * weights.palletePlastique16;
+
+  const palletePlastique16Total = useMemo(
+    () =>
+      palettesPlastique16.reduce(
+        (total, p) => total + (parseNonNegativeNumber(p.weight) ?? 0),
+        0
+      ),
+    [palettesPlastique16]
+  );
 
   const palleteBoisTotal = useMemo(
     () =>
@@ -93,7 +116,7 @@ export default function Home() {
         cartone_congle_035_quantity: cartoneCongle035Qty,
         cartone_congle_058_quantity: cartoneCongle058Qty,
         pallete_plastique_72_quantity: palletePlastique72Qty,
-        pallete_plastique_16_quantity: palletePlastique16Qty,
+        pallete_plastique_16_quantity: palettesPlastique16.length,
         palettes_bois: palettesBois.map((p) => parseNonNegativeNumber(p.weight) ?? 0),
         total_general: totalGeneral,
       });
@@ -114,7 +137,7 @@ export default function Home() {
           <PackagingInput
             title="Caisse"
             label="Nombre de caisses"
-            coefficient="1.5"
+            coefficient={weights.caisse}
             value={caisse}
             onChange={handleIntegerChange(setCaisse)}
             total={caisseTotal}
@@ -124,7 +147,7 @@ export default function Home() {
           <PackagingInput
             title="Cartone frais"
             label="Nombre de cartons frais"
-            coefficient="0.32"
+            coefficient={weights.cartoneFrais}
             value={cartoneFrais}
             onChange={handleIntegerChange(setCartoneFrais)}
             total={cartoneFraisTotal}
@@ -132,50 +155,54 @@ export default function Home() {
           />
 
           <PackagingInput
-            title="Cartone congle (0.35)"
+            title="Cartone congle (0,35)"
             label="Nombre de cartons"
-            coefficient="0.35"
+            coefficient={weights.cartoneCongle035}
             value={cartoneCongle035}
             onChange={handleIntegerChange(setCartoneCongle035)}
             total={cartoneCongle035Total}
-            totalLabel="Total poids cartone congle (0.35)"
+            totalLabel="Total poids cartone congle (0,35)"
           />
 
           <PackagingInput
-            title="Cartone congle (0.58)"
+            title="Cartone congle (0,58)"
             label="Nombre de cartons"
-            coefficient="0.58"
+            coefficient={weights.cartoneCongle058}
             value={cartoneCongle058}
             onChange={handleIntegerChange(setCartoneCongle058)}
             total={cartoneCongle058Total}
-            totalLabel="Total poids cartone congle (0.58)"
+            totalLabel="Total poids cartone congle (0,58)"
           />
 
           <PackagingInput
-            title="Pallete plastique (7.2)"
+            title="Pallete plastique (7,2)"
             label="Nombre de palettes"
-            coefficient="7.2"
+            coefficient={weights.palletePlastique72}
             value={palletePlastique72}
             onChange={handleIntegerChange(setPalletePlastique72)}
             total={palletePlastique72Total}
-            totalLabel="Total poids pallete plastique (7.2)"
+            totalLabel="Total poids pallete plastique (7,2)"
           />
 
-          <PackagingInput
+          <WoodPallets
             title="Pallete plastique (16)"
-            label="Nombre de palettes"
-            coefficient="16"
-            value={palletePlastique16}
-            onChange={handleIntegerChange(setPalletePlastique16)}
-            total={palletePlastique16Total}
+            itemLabel="Pallete plastique (16)"
+            addButtonLabel="+ Ajouter une pallete plastique (16)"
+            emptyLabel="Aucune pallete plastique (16). Cliquez pour en ajouter une."
             totalLabel="Total poids pallete plastique (16)"
+            pallets={palettesPlastique16}
+            onAdd={addPlasticPallet}
+            onRemove={removePlasticPallet}
+            onChange={handlePlasticWeightChange}
+            total={palletePlastique16Total}
+            fullWidth={false}
           />
 
           <WoodPallets
             pallets={palettesBois}
             onAdd={addWoodPallet}
             onRemove={removeWoodPallet}
-            onChange={handleDecimalChange}
+            onChange={handleWoodWeightChange}
             total={palleteBoisTotal}
           />
         </div>

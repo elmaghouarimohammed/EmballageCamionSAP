@@ -26,17 +26,21 @@ export function parseNonNegativeInteger(value) {
   return parsed;
 }
 
-export function formatWeight(value) {
-  return `${Number(value).toFixed(2)} kg`;
+export function formatNumber(value) {
+  return Number(value).toFixed(2).replace('.', ',');
 }
 
-export function formatNumber(value) {
-  return Number(value).toFixed(2);
+export function formatWeight(value) {
+  return `${formatNumber(value)} kg`;
+}
+
+export function formatCoefficient(value) {
+  return String(value).replace('.', ',');
 }
 
 export function isValidDecimalInput(value) {
   if (value === '') return true;
-  return /^\d*\.?\d*$/.test(value);
+  return /^\d*,?\d*$/.test(value);
 }
 
 export function isValidIntegerInput(value) {

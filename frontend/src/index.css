@@ -337,6 +337,21 @@ input[type="number"] {
   margin-bottom: 0;
 }
 
+.sap-named-inputs {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.sap-named-inputs .sap-input:first-child {
+  flex: 1.4;
+}
+
+.sap-named-inputs .sap-input:nth-child(2) {
+  flex: 0.8;
+  max-width: 120px;
+}
+
 /* ── SAP Fiori Launchpad ── */
 .fiori-page {
   background: #F5F7FA;
