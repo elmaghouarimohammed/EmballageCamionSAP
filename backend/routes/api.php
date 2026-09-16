@@ -8,5 +8,8 @@ Route::post('/calculations', [CalculationController::class, 'store']);
 Route::get('/calculations/{calculation}', [CalculationController::class, 'show']);
 Route::delete('/calculations/{calculation}', [CalculationController::class, 'destroy']);
 Route::get('/calculations', function () {
-    return \App\Models\Calculation::all();
+    return response()->json([
+        ['id' => 1, 'name' => 'Emballage Carton', 'value' => 150],
+        ['id' => 2, 'name' => 'Emballage Plastique', 'value' => 200],
+    ]);
 });
