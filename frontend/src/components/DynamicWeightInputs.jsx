@@ -1,4 +1,4 @@
-import { formatWeight } from '../utils/validation';
+import { formatWeight, normalizeDecimalInput } from '../utils/validation';
 
 export default function DynamicWeightInputs({
   title,
@@ -33,7 +33,7 @@ export default function DynamicWeightInputs({
                 type="text"
                 inputMode="decimal"
                 value={item.weight}
-                onChange={(e) => onChange(item.id, e.target.value)}
+                onChange={(e) => onChange(item.id, normalizeDecimalInput(e.target.value))}
                 placeholder="0,00"
                 className="sap-input"
               />

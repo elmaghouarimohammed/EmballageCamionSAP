@@ -25,7 +25,7 @@ export default function DifferenceResult({ difference }) {
   return (
     <fieldset className="sap-group-box">
       <legend className="sap-group-box-title">
-        Différence entre Poids pese et Poids de produits et emballage
+        ECART
       </legend>
 
       <div className="sap-form-row">

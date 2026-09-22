@@ -1,3 +1,8 @@
+export function normalizeDecimalInput(value) {
+  if (value === '' || value === null || value === undefined) return value ?? '';
+  return String(value).replace(/\./g, ',');
+}
+
 export function parseNonNegativeNumber(value) {
   if (value === '' || value === null || value === undefined) {
     return 0;

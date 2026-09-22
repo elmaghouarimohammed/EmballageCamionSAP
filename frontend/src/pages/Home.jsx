@@ -1,214 +1,414 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import PackagingInput from '../components/PackagingInput';
-import TotalWeight from '../components/TotalWeight';
-import WoodPallets from '../components/WoodPallets';
+import ConditionnementTable from '../components/ConditionnementTable';
+import DifferenceResult from '../components/DifferenceResult';
+import DocumentMeta from '../components/DocumentMeta';
+import DynamicWeightInputs from '../components/DynamicWeightInputs';
+import PrintDifferenceBlock from '../components/PrintDifferenceBlock';
 import { weights } from '../constants/weights';
-import { saveCalculation } from '../services/api';
-import { isValidDecimalInput, isValidIntegerInput, parseNonNegativeInteger, parseNonNegativeNumber } from '../utils/validation';
+import {
+  commitDocumentId,
+  formatDocumentDate,
+  nextDocumentId,
+} from '../utils/document';
+import {
+  getDocument,
+  listDocumentIds,
+  saveDocument,
+} from '../utils/documentStore';
+import {
+  formatWeight,
+  isValidDecimalInput,
+  isValidIntegerInput,
+  normalizeDecimalInput,
+  parseNonNegativeInteger,
+  parseNonNegativeNumber,
+} from '../utils/validation';
 
-let itemIdCounter = 0;
+const FIXED_ITEMS = [
+  { key: 'caisse', label: 'Caisse', poidsUnitaire: weights.caisse },
+  { key: 'cartoneFrais', label: 'Carton frais', poidsUnitaire: weights.cartoneFrais },
+  { key: 'cartoneCongle035', label: 'Carton congelé (0,35)', poidsUnitaire: weights.cartoneCongle035 },
+  { key: 'cartoneCongle058', label: 'Carton congelé (0,58)', poidsUnitaire: weights.cartoneCongle058 },
+  { key: 'palletePlastique72', label: 'Palette plastique (7,2)', poidsUnitaire: weights.palletePlastique72 },
+];
 
-function createItem() {
-  itemIdCounter += 1;
-  return { id: itemIdCounter, name: '', weight: '' };
+const EMPTY_NOMBRES = {
+  caisse: '',
+  cartoneFrais: '',
+  cartoneCongle035: '',
+  cartoneCongle058: '',
+  palletePlastique72: '',
+};
+
+let palletIdCounter = 0;
+let weightIdCounter = 0;
+
+function createPalletRow(nombre = '1', poidsUnitaire = '') {
+  palletIdCounter += 1;
+  return { id: palletIdCounter, nombre, poidsUnitaire };
+}
+
+function createWeightItem(weight = '') {
+  weightIdCounter += 1;
+  return { id: weightIdCounter, weight };
+}
+
+function rowQuantite(nombre, poidsUnitaire) {
+  return (parseNonNegativeInteger(nombre) ?? 0) * (parseNonNegativeNumber(poidsUnitaire) ?? 0);
+}
+
+function sumWeights(items) {
+  return items.reduce(
+    (total, item) => total + (parseNonNegativeNumber(item.weight) ?? 0),
+    0
+  );
 }
 
 export default function Home() {
-  const [caisse, setCaisse] = useState('');
-  const [cartoneFrais, setCartoneFrais] = useState('');
-  const [cartoneCongle035, setCartoneCongle035] = useState('');
-  const [cartoneCongle058, setCartoneCongle058] = useState('');
-  const [palletePlastique72, setPalletePlastique72] = useState('');
-  const [palettesPlastique16, setPalettesPlastique16] = useState([]);
+  const [nombres, setNombres] = useState(EMPTY_NOMBRES);
   const [palettesBois, setPalettesBois] = useState([]);
-  const [isSaving, setIsSaving] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Prêt');
-  const { setFooterMessage } = useOutletContext();
+  const [palettesPlastique16, setPalettesPlastique16] = useState([]);
+  const [creationDate, setCreationDate] = useState(() => new Date());
+  const [documentId, setDocumentId] = useState(() => {
+    const now = new Date();
+    return nextDocumentId(now);
+  });
+  const [documentDate, setDocumentDate] = useState(() => formatDocumentDate());
+  const [livreur, setLivreur] = useState('');
+  const [poidsPese, setPoidsPese] = useState([]);
+  const [poidsMoins, setPoidsMoins] = useState([]);
+  const [poidsProduitsEmballage, setPoidsProduitsEmballage] = useState('');
+  const {
+    setFooterMessage,
+    registerSaveHandler,
+    registerSelectIdHandler,
+    refreshDocumentIds,
+    setSelectedDocId,
+  } = useOutletContext();
 
   useEffect(() => {
-    setFooterMessage(statusMessage);
-  }, [statusMessage, setFooterMessage]);
+    setFooterMessage('Prêt');
+  }, [setFooterMessage]);
 
-  const handleIntegerChange = useCallback((setter) => (value) => {
-    if (isValidIntegerInput(value)) {
-      setter(value);
+  const resetFormForNewDocument = useCallback(() => {
+    palletIdCounter = 0;
+    weightIdCounter = 0;
+    setNombres({ ...EMPTY_NOMBRES });
+    setPalettesBois([]);
+    setPalettesPlastique16([]);
+    setPoidsPese([]);
+    setPoidsMoins([]);
+    setPoidsProduitsEmballage('');
+    setLivreur('');
+    const now = new Date();
+    setCreationDate(now);
+    setDocumentId(nextDocumentId(now));
+    setDocumentDate(formatDocumentDate(now));
+    setSelectedDocId('');
+  }, [setSelectedDocId]);
+
+  const handleSave = useCallback(() => {
+    const docData = {
+      id: documentId,
+      date: documentDate,
+      livreur,
+      nombres: { ...nombres },
+      palettesBois: palettesBois.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),
+      palettesPlastique16: palettesPlastique16.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),
+      poidsPese: poidsPese.map(({ weight }) => ({ weight })),
+      poidsMoins: poidsMoins.map(({ weight }) => ({ weight })),
+      poidsProduitsEmballage,
+      savedAt: new Date().toISOString(),
+    };
+
+    try {
+      const existingIds = listDocumentIds();
+      const isNewDoc = !existingIds.includes(documentId);
+      saveDocument(documentId, docData);
+      if (isNewDoc) {
+        commitDocumentId(creationDate);
+      }
+      setFooterMessage(`Document ${documentId} enregistré avec succès.`);
+      resetFormForNewDocument();
+      if (refreshDocumentIds) refreshDocumentIds();
+    } catch (err) {
+      setFooterMessage(`Erreur lors de l'enregistrement: ${err.message}`);
+    }
+  }, [
+    documentId,
+    documentDate,
+    livreur,
+    nombres,
+    palettesBois,
+    palettesPlastique16,
+    poidsPese,
+    poidsMoins,
+    poidsProduitsEmballage,
+    creationDate,
+    setFooterMessage,
+    resetFormForNewDocument,
+    refreshDocumentIds,
+  ]);
+
+  const handleSelectDocumentId = useCallback((id) => {
+    const doc = getDocument(id);
+    if (!doc) {
+      setFooterMessage(`Document ${id} introuvable.`);
+      return;
+    }
+
+    palletIdCounter = 0;
+    weightIdCounter = 0;
+
+    setNombres(doc.nombres ? { ...EMPTY_NOMBRES, ...doc.nombres } : { ...EMPTY_NOMBRES });
+    setLivreur(doc.livreur || '');
+    setDocumentId(doc.id || id);
+    setDocumentDate(doc.date || formatDocumentDate());
+
+    setPalettesBois(
+      Array.isArray(doc.palettesBois)
+        ? doc.palettesBois.map((r) => createPalletRow(r.nombre ?? '1', r.poidsUnitaire ?? ''))
+        : []
+    );
+    setPalettesPlastique16(
+      Array.isArray(doc.palettesPlastique16)
+        ? doc.palettesPlastique16.map((r) => createPalletRow(r.nombre ?? '1', r.poidsUnitaire ?? ''))
+        : []
+    );
+    setPoidsPese(
+      Array.isArray(doc.poidsPese)
+        ? doc.poidsPese.map((w) => createWeightItem(w.weight ?? ''))
+        : []
+    );
+    setPoidsMoins(
+      Array.isArray(doc.poidsMoins)
+        ? doc.poidsMoins.map((w) => createWeightItem(w.weight ?? ''))
+        : []
+    );
+    setPoidsProduitsEmballage(doc.poidsProduitsEmballage ?? '');
+
+    setFooterMessage(`Document ${id} chargé.`);
+  }, [setFooterMessage]);
+
+  const saveRef = useRef(handleSave);
+  const selectRef = useRef(handleSelectDocumentId);
+  saveRef.current = handleSave;
+  selectRef.current = handleSelectDocumentId;
+
+  const stableSaveWrapper = useCallback(() => {
+    saveRef.current();
+  }, []);
+
+  const stableSelectWrapper = useCallback((id) => {
+    selectRef.current(id);
+  }, []);
+
+  useEffect(() => {
+    if (registerSaveHandler) registerSaveHandler(() => stableSaveWrapper);
+    if (registerSelectIdHandler) registerSelectIdHandler(() => stableSelectWrapper);
+  }, [registerSaveHandler, registerSelectIdHandler, stableSaveWrapper, stableSelectWrapper]);
+
+  const handleFixedNombreChange = useCallback((key, value) => {
+    if (!isValidIntegerInput(value)) return;
+    setNombres((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const addBois = useCallback(() => {
+    setPalettesBois((prev) => [...prev, createPalletRow()]);
+  }, []);
+
+  const addPlastique16 = useCallback(() => {
+    setPalettesPlastique16((prev) => [...prev, createPalletRow()]);
+  }, []);
+
+  const handlePalletChange = useCallback((type, id, field, value) => {
+    if (field === 'nombre' && !isValidIntegerInput(value)) return;
+    if (field === 'poidsUnitaire') {
+      value = normalizeDecimalInput(value);
+      if (!isValidDecimalInput(value)) return;
+    }
+
+    const setter = type === 'bois' ? setPalettesBois : setPalettesPlastique16;
+    setter((prev) =>
+      prev.map((row) => (row.id === id ? { ...row, [field]: value } : row))
+    );
+  }, []);
+
+  const removePallet = useCallback((type, id) => {
+    const setter = type === 'bois' ? setPalettesBois : setPalettesPlastique16;
+    setter((prev) => prev.filter((row) => row.id !== id));
+  }, []);
+
+  const handleWeightChange = useCallback((setter) => (id, value) => {
+    value = normalizeDecimalInput(value);
+    if (!isValidDecimalInput(value)) return;
+    setter((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, weight: value } : item))
+    );
+  }, []);
+
+  const addPoidsPese = useCallback(() => {
+    setPoidsPese((prev) => [...prev, createWeightItem()]);
+  }, []);
+
+  const removePoidsPese = useCallback((id) => {
+    setPoidsPese((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const addPoidsMoins = useCallback(() => {
+    setPoidsMoins((prev) => [...prev, createWeightItem()]);
+  }, []);
+
+  const removePoidsMoins = useCallback((id) => {
+    setPoidsMoins((prev) => prev.filter((item) => item.id !== id));
+  }, []);
+
+  const handleProduitsChange = useCallback((value) => {
+    value = normalizeDecimalInput(value);
+    if (isValidDecimalInput(value)) {
+      setPoidsProduitsEmballage(value);
     }
   }, []);
 
-  const handleWoodWeightChange = useCallback((id, value) => {
-    if (!isValidDecimalInput(value)) return;
-    setPalettesBois((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, weight: value } : p))
-    );
-  }, []);
-
-  const addWoodPallet = useCallback(() => {
-    setPalettesBois((prev) => [...prev, createItem()]);
-  }, []);
-
-  const removeWoodPallet = useCallback((id) => {
-    setPalettesBois((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const addPlasticPallet = useCallback(() => {
-    setPalettesPlastique16((prev) => [...prev, createItem()]);
-  }, []);
-
-  const removePlasticPallet = useCallback((id) => {
-    setPalettesPlastique16((prev) => prev.filter((p) => p.id !== id));
-  }, []);
-
-  const handlePlasticWeightChange = useCallback((id, value) => {
-    if (!isValidDecimalInput(value)) return;
-    setPalettesPlastique16((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, weight: value } : p))
-    );
-  }, []);
-
-  const caisseQty = parseNonNegativeInteger(caisse) ?? 0;
-  const cartoneFraisQty = parseNonNegativeInteger(cartoneFrais) ?? 0;
-  const cartoneCongle035Qty = parseNonNegativeInteger(cartoneCongle035) ?? 0;
-  const cartoneCongle058Qty = parseNonNegativeInteger(cartoneCongle058) ?? 0;
-
-  const palletePlastique72Qty = parseNonNegativeInteger(palletePlastique72) ?? 0;
-
-  const caisseTotal = caisseQty * weights.caisse;
-  const cartoneFraisTotal = cartoneFraisQty * weights.cartoneFrais;
-  const cartoneCongle035Total = cartoneCongle035Qty * weights.cartoneCongle035;
-  const cartoneCongle058Total = cartoneCongle058Qty * weights.cartoneCongle058;
-  const palletePlastique72Total = palletePlastique72Qty * weights.palletePlastique72;
-
-  const palletePlastique16Total = useMemo(
+  const fixedRows = useMemo(
     () =>
-      palettesPlastique16.reduce(
-        (total, p) => total + (parseNonNegativeNumber(p.weight) ?? 0),
-        0
-      ),
-    [palettesPlastique16]
+      FIXED_ITEMS.map((item) => {
+        const nombre = nombres[item.key];
+        const quantite = rowQuantite(nombre, item.poidsUnitaire);
+        return { ...item, nombre, quantite };
+      }),
+    [nombres]
   );
 
-  const palleteBoisTotal = useMemo(
+  const palettesBoisRows = useMemo(
     () =>
-      palettesBois.reduce(
-        (total, p) => total + (parseNonNegativeNumber(p.weight) ?? 0),
-        0
-      ),
+      palettesBois.map((row) => ({
+        ...row,
+        quantite: rowQuantite(row.nombre, row.poidsUnitaire),
+      })),
     [palettesBois]
   );
 
-  const totalGeneral =
-    caisseTotal +
-    cartoneFraisTotal +
-    cartoneCongle035Total +
-    cartoneCongle058Total +
-    palletePlastique72Total +
-    palletePlastique16Total +
-    palleteBoisTotal;
+  const palettesPlastique16Rows = useMemo(
+    () =>
+      palettesPlastique16.map((row) => ({
+        ...row,
+        quantite: rowQuantite(row.nombre, row.poidsUnitaire),
+      })),
+    [palettesPlastique16]
+  );
 
-  const handleSave = async () => {
-    setIsSaving(true);
-    setStatusMessage('Enregistrement en cours...');
-    try {
-      await saveCalculation({
-        caisse_quantity: caisseQty,
-        cartone_frais_quantity: cartoneFraisQty,
-        cartone_congle_035_quantity: cartoneCongle035Qty,
-        cartone_congle_058_quantity: cartoneCongle058Qty,
-        pallete_plastique_72_quantity: palletePlastique72Qty,
-        pallete_plastique_16_quantity: palettesPlastique16.length,
-        palettes_bois: palettesBois.map((p) => parseNonNegativeNumber(p.weight) ?? 0),
-        total_general: totalGeneral,
-      });
-      setStatusMessage('✓ Calcul enregistré avec succès');
-      setTimeout(() => setStatusMessage('Prêt'), 3000);
-    } catch {
-      setStatusMessage('Erreur lors de l\'enregistrement');
-      setTimeout(() => setStatusMessage('Prêt'), 3000);
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const totalQuantite =
+    fixedRows.reduce((sum, row) => sum + row.quantite, 0) +
+    palettesBoisRows.reduce((sum, row) => sum + row.quantite, 0) +
+    palettesPlastique16Rows.reduce((sum, row) => sum + row.quantite, 0);
+
+  const totalPoidsPese = useMemo(() => sumWeights(poidsPese), [poidsPese]);
+  const totalPoidsMoins = useMemo(() => sumWeights(poidsMoins), [poidsMoins]);
+  const poidsApresSoustraction = totalPoidsPese - totalPoidsMoins;
+  const poidsProduitsValue = parseNonNegativeNumber(poidsProduitsEmballage) ?? 0;
+  const ecart = poidsApresSoustraction - poidsProduitsValue;
 
   return (
-    <>
-      <main className="sap-content flex-1">
-        <div className="sap-form-grid sap-form-grid-3">
-          <PackagingInput
-            title="Caisse"
-            label="Nombre de caisses"
-            coefficient={weights.caisse}
-            value={caisse}
-            onChange={handleIntegerChange(setCaisse)}
-            total={caisseTotal}
-            totalLabel="Total poids caisse"
-          />
+    <main className="sap-content flex-1" id="print-document">
+      <DocumentMeta
+        documentId={documentId}
+        documentDate={documentDate}
+        livreur={livreur}
+        onLivreurChange={setLivreur}
+        onPrint={() => window.print()}
+      />
 
-          <PackagingInput
-            title="Cartone frais"
-            label="Nombre de cartons frais"
-            coefficient={weights.cartoneFrais}
-            value={cartoneFrais}
-            onChange={handleIntegerChange(setCartoneFrais)}
-            total={cartoneFraisTotal}
-            totalLabel="Total poids cartone frais"
-          />
+      <ConditionnementTable
+        fixedRows={fixedRows}
+        onFixedNombreChange={handleFixedNombreChange}
+        palettesBois={palettesBoisRows}
+        palettesPlastique16={palettesPlastique16Rows}
+        onAddBois={addBois}
+        onAddPlastique16={addPlastique16}
+        onPalletChange={handlePalletChange}
+        onRemovePallet={removePallet}
+        totalQuantite={totalQuantite}
+      />
 
-          <PackagingInput
-            title="Cartone congle (0,35)"
-            label="Nombre de cartons"
-            coefficient={weights.cartoneCongle035}
-            value={cartoneCongle035}
-            onChange={handleIntegerChange(setCartoneCongle035)}
-            total={cartoneCongle035Total}
-            totalLabel="Total poids cartone congle (0,35)"
-          />
+      <div className="sap-form-grid no-print">
+        <DynamicWeightInputs
+          title="Poids pese"
+          inputPrefix="Poids pese"
+          addButtonLabel="+ Ajouter un poids pese"
+          items={poidsPese}
+          onAdd={addPoidsPese}
+          onRemove={removePoidsPese}
+          onChange={handleWeightChange(setPoidsPese)}
+          total={totalPoidsPese}
+          totalLabel="TOTAL POIDS PESE"
+        />
 
-          <PackagingInput
-            title="Cartone congle (0,58)"
-            label="Nombre de cartons"
-            coefficient={weights.cartoneCongle058}
-            value={cartoneCongle058}
-            onChange={handleIntegerChange(setCartoneCongle058)}
-            total={cartoneCongle058Total}
-            totalLabel="Total poids cartone congle (0,58)"
-          />
+        <DynamicWeightInputs
+          title="Poids moins"
+          inputPrefix="Poids moins"
+          addButtonLabel="+ Ajouter un poids moins"
+          items={poidsMoins}
+          onAdd={addPoidsMoins}
+          onRemove={removePoidsMoins}
+          onChange={handleWeightChange(setPoidsMoins)}
+          total={totalPoidsMoins}
+          totalLabel="TOTAL POIDS MOINS"
+        />
 
-          <PackagingInput
-            title="Pallete plastique (7,2)"
-            label="Nombre de palettes"
-            coefficient={weights.palletePlastique72}
-            value={palletePlastique72}
-            onChange={handleIntegerChange(setPalletePlastique72)}
-            total={palletePlastique72Total}
-            totalLabel="Total poids pallete plastique (7,2)"
-          />
+        <fieldset className="sap-group-box">
+          <legend className="sap-group-box-title">Résultat après soustraction</legend>
+          <div className="sap-form-row">
+            <span className="sap-form-label">POIDS APRÈS SOUSTRACTION</span>
+            <div className="sap-form-input-wrap">
+              <div
+                className="sap-input-readonly"
+                style={{ fontWeight: 'bold', background: '#fff9c4' }}
+              >
+                {formatWeight(poidsApresSoustraction)}
+              </div>
+            </div>
+          </div>
+        </fieldset>
 
-          <WoodPallets
-            title="Pallete plastique (16)"
-            itemLabel="Pallete plastique (16)"
-            addButtonLabel="+ Ajouter une pallete plastique (16)"
-            emptyLabel="Aucune pallete plastique (16). Cliquez pour en ajouter une."
-            totalLabel="Total poids pallete plastique (16)"
-            pallets={palettesPlastique16}
-            onAdd={addPlasticPallet}
-            onRemove={removePlasticPallet}
-            onChange={handlePlasticWeightChange}
-            total={palletePlastique16Total}
-            fullWidth={false}
-          />
+        <fieldset className="sap-group-box">
+          <legend className="sap-group-box-title">Poids de produits et emballage</legend>
+          <div className="sap-form-row">
+            <label htmlFor="poids-produits" className="sap-form-label">
+              Poids de produits et emballage
+            </label>
+            <div className="sap-form-input-wrap">
+              <input
+                id="poids-produits"
+                type="text"
+                inputMode="decimal"
+                value={poidsProduitsEmballage}
+                onChange={(e) => handleProduitsChange(e.target.value)}
+                placeholder="0,00"
+                className="sap-input"
+              />
+              <span className="sap-input-suffix">kg</span>
+            </div>
+          </div>
+          <div className="sap-form-row">
+            <span className="sap-form-label">POIDS DE PRODUITS ET EMBALLAGE</span>
+            <div className="sap-form-input-wrap">
+              <div className="sap-input-readonly">{formatWeight(poidsProduitsValue)}</div>
+            </div>
+          </div>
+        </fieldset>
+      </div>
 
-          <WoodPallets
-            pallets={palettesBois}
-            onAdd={addWoodPallet}
-            onRemove={removeWoodPallet}
-            onChange={handleWoodWeightChange}
-            total={palleteBoisTotal}
-          />
-        </div>
+      <div className="no-print">
+        <DifferenceResult difference={ecart} />
+      </div>
 
-        <TotalWeight total={totalGeneral} onSave={handleSave} isSaving={isSaving} />
-      </main>
-    </>
+      <PrintDifferenceBlock
+        poidsPese={poidsPese}
+        poidsMoins={poidsMoins}
+        poidsProduitsEmballage={poidsProduitsEmballage}
+      />
+    </main>
   );
 }
