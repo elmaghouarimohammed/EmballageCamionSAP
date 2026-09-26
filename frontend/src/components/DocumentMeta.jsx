@@ -59,7 +59,9 @@ export default function DocumentMeta({
         </div>
 
         <div className="sap-form-row">
-          <label htmlFor="doc-livreur" className="sap-form-label">Livreur</label>
+          <label htmlFor="doc-livreur" className="sap-form-label">
+            Livreur <span className="required-asterisk">*</span>
+          </label>
           <div className="sap-form-input-wrap">
             <input
               id="doc-livreur"
@@ -68,7 +70,8 @@ export default function DocumentMeta({
               readOnly={isSelect}
               onChange={isSelect ? undefined : (e) => onLivreurChange(e.target.value)}
               className={`sap-input ${isSelect ? 'sap-input-readonly' : ''}`}
-              placeholder={isSelect ? '' : 'Nom du livreur'}
+              placeholder={isSelect ? '' : 'Nom du livreur *'}
+              required
             />
           </div>
         </div>

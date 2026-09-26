@@ -109,10 +109,23 @@ export default function Home() {
   }, [setSelectedDocId]);
 
   const handleSave = useCallback(() => {
+    if (!livreur || String(livreur).trim() === '') {
+      setFooterMessage('Erreur: le champ "Livreur" est obligatoire pour enregistrer.');
+      try {
+        const input = document.getElementById('doc-livreur');
+        if (input) {
+          input.classList.add('sap-input-invalid');
+          input.focus();
+          setTimeout(() => input.classList.remove('sap-input-invalid'), 2500);
+        }
+      } catch {}
+      return;
+    }
+
     const docData = {
       id: documentId,
       date: documentDate,
-      livreur,
+      livreur: String(livreur).trim(),
       nombres: { ...nombres },
       palettesBois: palettesBois.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),
       palettesPlastique16: palettesPlastique16.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),

@@ -294,6 +294,24 @@ input[type="number"] {
   min-width: 0;
 }
 
+.sap-input-invalid {
+  border: 2px solid #c0392b !important;
+  background: #fdecea !important;
+  box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.15);
+  animation: input-flash 0.4s ease 2;
+}
+
+.required-asterisk {
+  color: #c0392b;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+@keyframes input-flash {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(192, 57, 43, 0.15); }
+  50% { box-shadow: 0 0 0 5px rgba(192, 57, 43, 0.35); }
+}
+
 .sap-input-suffix {
   border: 2px inset #808080;
   border-left: none;
