@@ -30,22 +30,24 @@ export default function Layout() {
   }, [selectIdHandler]);
 
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="app-shell">
       <Navbar
         documents={documents}
         selectedDocId={selectedDocId}
         onSave={handleSaveClick}
         onSelectId={handleSelectId}
       />
-      <Outlet
-        context={{
-          setFooterMessage,
-          registerSaveHandler: setSaveHandler,
-          registerSelectIdHandler: setSelectIdHandler,
-          refreshDocumentIds,
-          setSelectedDocId,
-        }}
-      />
+      <div className="app-scroll">
+        <Outlet
+          context={{
+            setFooterMessage,
+            registerSaveHandler: setSaveHandler,
+            registerSelectIdHandler: setSelectIdHandler,
+            refreshDocumentIds,
+            setSelectedDocId,
+          }}
+        />
+      </div>
       <Footer message={footerMessage} />
     </div>
   );
