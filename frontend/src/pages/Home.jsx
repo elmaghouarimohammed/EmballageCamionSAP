@@ -24,6 +24,7 @@ import {
   parseNonNegativeInteger,
   parseNonNegativeNumber,
 } from '../utils/validation';
+import { sanitizePlainText } from '../utils/security';
 
 const FIXED_ITEMS = [
   { key: 'caisse', label: 'Caisse', poidsUnitaire: weights.caisse },
@@ -109,7 +110,8 @@ export default function Home() {
   }, [setSelectedDocId]);
 
   const handleSave = useCallback(() => {
-    if (!livreur || String(livreur).trim() === '') {
+    const safeLivreur = sanitizePlainText(livreur, { maxLength: 120 });
+    if (!safeLivreur) {
       setFooterMessage('Erreur: le champ "Livreur" est obligatoire pour enregistrer.');
       try {
         const input = document.getElementById('doc-livreur');
@@ -125,7 +127,7 @@ export default function Home() {
     const docData = {
       id: documentId,
       date: documentDate,
-      livreur: String(livreur).trim(),
+      livreur: safeLivreur,
       nombres: { ...nombres },
       palettesBois: palettesBois.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),
       palettesPlastique16: palettesPlastique16.map(({ nombre, poidsUnitaire }) => ({ nombre, poidsUnitaire })),
@@ -323,13 +325,20 @@ export default function Home() {
   const poidsProduitsValue = parseNonNegativeNumber(poidsProduitsEmballage) ?? 0;
   const ecart = poidsApresSoustraction - poidsProduitsValue;
 
+  const handleLivreurChange = useCallback(
+    (value) => {
+      setLivreur(sanitizePlainText(value, { maxLength: 120, trim: false, collapseWhitespace: false }));
+    },
+    []
+  );
+
   return (
     <main className="sap-content flex-1" id="print-document">
       <DocumentMeta
         documentId={documentId}
         documentDate={documentDate}
         livreur={livreur}
-        onLivreurChange={setLivreur}
+        onLivreurChange={handleLivreurChange}
         onPrint={() => window.print()}
       />
 
