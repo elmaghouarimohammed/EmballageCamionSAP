@@ -11,9 +11,15 @@ export default function DocumentMeta({
   const isSelect = mode === 'select';
 
   return (
-    <fieldset className="sap-group-box">
-      <legend className="sap-group-box-title">Document</legend>
-      <h1 className="print-only-title">EmballageCamionSAP — Conditionnement</h1>
+    <>
+      <img
+        src="/logo-sahel.png"
+        alt="Abattoirs Sahel"
+        className="print-logo"
+      />
+      <fieldset className="sap-group-box">
+        <legend className="sap-group-box-title">Document</legend>
+        <h1 className="print-only-title">EmballageCamionSAP — Conditionnement</h1>
 
       <div className={`doc-meta-row ${isSelect ? 'doc-meta-row-select' : ''}`}>
         <div className="sap-form-row">
@@ -83,5 +89,6 @@ export default function DocumentMeta({
         )}
       </div>
     </fieldset>
+    </>
   );
 }
