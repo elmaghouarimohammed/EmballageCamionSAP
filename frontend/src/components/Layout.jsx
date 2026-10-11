@@ -9,6 +9,7 @@ export default function Layout() {
   const [documents, setDocuments] = useState(() => listDocumentsWithMeta());
   const [saveHandler, setSaveHandler] = useState(null);
   const [selectIdHandler, setSelectIdHandler] = useState(null);
+  const [newDocumentHandler, setNewDocumentHandler] = useState(null);
   const [selectedDocId, setSelectedDocId] = useState('');
 
   const refreshDocumentIds = useCallback(() => {
@@ -29,6 +30,13 @@ export default function Layout() {
     }
   }, [selectIdHandler]);
 
+  const handleNewDocument = useCallback(() => {
+    if (newDocumentHandler) {
+      newDocumentHandler();
+      refreshDocumentIds();
+    }
+  }, [newDocumentHandler, refreshDocumentIds]);
+
   return (
     <div className="app-shell">
       <Navbar
@@ -36,6 +44,7 @@ export default function Layout() {
         selectedDocId={selectedDocId}
         onSave={handleSaveClick}
         onSelectId={handleSelectId}
+        onNewDocument={handleNewDocument}
       />
       <div className="app-scroll">
         <Outlet
@@ -43,6 +52,7 @@ export default function Layout() {
             setFooterMessage,
             registerSaveHandler: setSaveHandler,
             registerSelectIdHandler: setSelectIdHandler,
+            registerNewDocumentHandler: setNewDocumentHandler,
             refreshDocumentIds,
             setSelectedDocId,
           }}

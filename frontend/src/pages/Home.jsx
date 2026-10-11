@@ -84,6 +84,7 @@ export default function Home() {
     setFooterMessage,
     registerSaveHandler,
     registerSelectIdHandler,
+    registerNewDocumentHandler,
     refreshDocumentIds,
     setSelectedDocId,
   } = useOutletContext();
@@ -208,8 +209,10 @@ export default function Home() {
 
   const saveRef = useRef(handleSave);
   const selectRef = useRef(handleSelectDocumentId);
+  const newDocRef = useRef(resetFormForNewDocument);
   saveRef.current = handleSave;
   selectRef.current = handleSelectDocumentId;
+  newDocRef.current = resetFormForNewDocument;
 
   const stableSaveWrapper = useCallback(() => {
     saveRef.current();
@@ -219,10 +222,15 @@ export default function Home() {
     selectRef.current(id);
   }, []);
 
+  const stableNewDocWrapper = useCallback(() => {
+    newDocRef.current();
+  }, []);
+
   useEffect(() => {
     if (registerSaveHandler) registerSaveHandler(() => stableSaveWrapper);
     if (registerSelectIdHandler) registerSelectIdHandler(() => stableSelectWrapper);
-  }, [registerSaveHandler, registerSelectIdHandler, stableSaveWrapper, stableSelectWrapper]);
+    if (registerNewDocumentHandler) registerNewDocumentHandler(() => stableNewDocWrapper);
+  }, [registerSaveHandler, registerSelectIdHandler, registerNewDocumentHandler, stableSaveWrapper, stableSelectWrapper, stableNewDocWrapper]);
 
   const handleFixedNombreChange = useCallback((key, value) => {
     if (!isValidIntegerInput(value)) return;
